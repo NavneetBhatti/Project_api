@@ -1,17 +1,32 @@
 const express = require('express');
 
+const authMiddleware = require('../middlewares/authMiddleware');
+
+
 let Car = require('../models/Car');
 
 const uuid = require('uuid');
 
 const router = express.Router();
 
+const { check, validationResult } = require('express-validator');
+
+
 //route Get api/cars
 //desc Get all Cars
 //access public
-router.get('/', async (req, res) => {
+// router.get('/', async (req, res) => {
+//   try {
+//     const carDB = await Car.find();
+//     res.send(carDB);
+//   } catch (err) {
+//     return res.status(500).send('Server error');
+//   }
+// });
+
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const carDB = await Car.find();
+    const carDB = await Car.find({ user: req.user.id });
     res.send(carDB);
   } catch (err) {
     return res.status(500).send('Server error');
@@ -36,8 +51,23 @@ router.get('/:id', async (req, res) => {
 //route Post api/cars
 //desc Insert car
 //access public
-router.post('/', async (req, res) => {
-  try {
+router.post(
+  '/',
+  authMiddleware,
+  [
+    check('make', 'make is required').not().isEmpty(),
+    check('model', 'model need to be 6 char or more').isLength({
+      min: 6,
+    }),
+    check('year', 'year is required').not().isEmpty(),
+
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
     const newCar = await Car.create({
       make: req.body.make,
       model: req.body.model,
